@@ -193,8 +193,32 @@ class AirCargoProblem(Problem):
         conditions by ignoring the preconditions required for an action to be
         executed.
         """
-        # TODO implement (see Russell-Norvig Ed-3 10.2.3  or Russell-Norvig Ed-2 11.2)
         count = 0
+
+        current_state = node.state
+        current_state_fluent = decode_state(current_state, self.state_map)
+        dist = len(set(self.goal) - set(current_state_fluent.pos))
+        while dist > 0:
+            best_improvement = 0
+            best_action = None
+            actions_list = self.actions_list
+            # ignoring preconditions by not calling the below method, which is expensive
+            # actions_list = self.actions(current_state)
+            for action in actions_list:
+                new_state = self.result(current_state, action)
+                new_state_fluent = decode_state(new_state, self.state_map)
+                new_dist = len(set(self.goal) - set(new_state_fluent.pos))
+                improvement = dist - new_dist
+                # to guarantee min number of actions, we need to find the action that get us closest to the goal
+                if improvement > best_improvement:
+                    best_improvement = improvement
+                    best_action = action
+
+            current_state = self.result(current_state, best_action)
+            current_state_fluent = decode_state(current_state, self.state_map)
+            dist = len(set(self.goal) - set(current_state_fluent.pos))
+            count += 1
+
         return count
 
 
