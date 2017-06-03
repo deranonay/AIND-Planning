@@ -408,8 +408,12 @@ class PlanningGraph():
         :param node_a2: PgNode_a
         :return: bool
         """
-        # TODO test for Inconsistent Effects between nodes
-        return False
+        if len(set(node_a1.action.effect_add) & set(node_a2.action.effect_rem)) > 0:
+            return True
+        elif len(set(node_a2.action.effect_add) & set(node_a1.action.effect_rem)) > 0:
+            return True
+        else:
+            return False
 
     def interference_mutex(self, node_a1: PgNode_a, node_a2: PgNode_a) -> bool:
         """
@@ -425,8 +429,16 @@ class PlanningGraph():
         :param node_a2: PgNode_a
         :return: bool
         """
-        # TODO test for Interference between nodes
-        return False
+        if len(set(node_a1.action.effect_add) & set(node_a2.action.precond_neg)) > 0:
+            return True
+        elif len(set(node_a1.action.effect_rem) & set(node_a2.action.precond_pos)) > 0:
+            return True
+        elif len(set(node_a2.action.effect_add) & set(node_a1.action.precond_neg)) > 0:
+            return True
+        elif len(set(node_a2.action.effect_rem) & set(node_a1.action.precond_pos)) > 0:
+            return True
+        else:
+            return False
 
     def competing_needs_mutex(self, node_a1: PgNode_a, node_a2: PgNode_a) -> bool:
         """
@@ -438,8 +450,20 @@ class PlanningGraph():
         :param node_a2: PgNode_a
         :return: bool
         """
+        # The tests don't seem to update the actual preconditions on the actions, they instead simply call the mutexify
+        # method on the nodes, which only update the mutex sets of parent nodes. That's why the below code doesn't work
+        # and has been commented out.
+        # if len(set(node_a1.action.precond_pos) & set(node_a2.action.precond_neg)) > 0:
+        #     return True
+        # elif len(set(node_a2.action.precond_pos) & set(node_a1.action.precond_neg)) > 0:
+        #     return True
+        # else:
+        #     return False
 
-        # TODO test for Competing Needs between nodes
+        for a1_parent in node_a1.parents:
+            for a2_parent in node_a2.parents:
+                if a1_parent.is_mutex(a2_parent):
+                    return True
         return False
 
     def update_s_mutex(self, nodeset: set):
@@ -474,8 +498,8 @@ class PlanningGraph():
         :param node_s2: PgNode_s
         :return: bool
         """
-        # TODO test for negation between nodes
-        return False
+        negated_node_s1 = PgNode_s(node_s1.symbol, not node_s1.is_pos)
+        return negated_node_s1 == node_s2
 
     def inconsistent_support_mutex(self, node_s1: PgNode_s, node_s2: PgNode_s):
         """
@@ -493,7 +517,19 @@ class PlanningGraph():
         :param node_s2: PgNode_s
         :return: bool
         """
-        # TODO test for Inconsistent Support between nodes
+        # Can one parent achieve both states?
+        all_parents = set(node_s1.parents) | set(node_s2.parents)
+        state_literals = {node_s1, node_s2}
+        for action in all_parents:
+            if state_literals <= action.children:
+                return False
+
+        # Is there any pairs of parents that are mutex?
+        for s1_parent in node_s1.parents:
+            for s2_parent in node_s2.parents:
+                if s1_parent.is_mutex(s2_parent):
+                    return True
+
         return False
 
     def h_levelsum(self) -> int:
@@ -501,7 +537,23 @@ class PlanningGraph():
 
         :return: int
         """
+        # For each goal in the problem, determine the level cost, then add them together
         level_sum = 0
-        # TODO implement
-        # for each goal in the problem, determine the level cost, then add them together
+
+        # Convert all goal states into PgNode_s instances
+        fs = decode_state(self.problem.goal, self.problem.state_map)
+        goal_nodes = set()
+        for literal in fs.pos:
+            goal_nodes.add(PgNode_s(literal, True))
+        for literal in fs.neg:
+            goal_nodes.add(PgNode_s(literal, False))
+
+        # Iterate over all goal state literals, check which level they are located at in the planning graph, and sum the
+        # levels up
+        for goal_node in goal_nodes:
+            for level, level_nodes in enumerate(self.s_levels):
+                if goal_node in level_nodes:
+                    level_sum += level
+                    break
+
         return level_sum
