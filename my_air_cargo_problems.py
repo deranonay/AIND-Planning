@@ -226,20 +226,14 @@ def air_cargo_p1() -> AirCargoProblem:
     cargos = ['C1', 'C2']
     planes = ['P1', 'P2']
     airports = ['JFK', 'SFO']
+    all_expr = get_all_expr(airports, cargos, planes)
+
     pos = [expr('At(C1, SFO)'),
            expr('At(C2, JFK)'),
            expr('At(P1, SFO)'),
            expr('At(P2, JFK)'),
            ]
-    neg = [expr('At(C2, SFO)'),
-           expr('In(C2, P1)'),
-           expr('In(C2, P2)'),
-           expr('At(C1, JFK)'),
-           expr('In(C1, P1)'),
-           expr('In(C1, P2)'),
-           expr('At(P1, JFK)'),
-           expr('At(P2, SFO)'),
-           ]
+    neg = list(all_expr - set(pos))
     init = FluentState(pos, neg)
     goal = [expr('At(C1, JFK)'),
             expr('At(C2, SFO)'),
@@ -247,10 +241,27 @@ def air_cargo_p1() -> AirCargoProblem:
     return AirCargoProblem(cargos, planes, airports, init, goal)
 
 
+def get_all_expr(airports, cargos, planes):
+    all_expr = set()
+    for cargo in cargos:
+        for plane in planes:
+            all_expr.add(expr('In({}, {})'.format(cargo, plane)))
+    for cargo in cargos:
+        for airport in airports:
+            all_expr.add(expr('At({}, {})'.format(cargo, airport)))
+    for plane in planes:
+        for airport in airports:
+            all_expr.add(expr('At({}, {})'.format(plane, airport)))
+
+    return all_expr
+
+
 def air_cargo_p2() -> AirCargoProblem:
     cargos = ['C1', 'C2', 'C3']
     planes = ['P1', 'P2', 'P3']
     airports = ['JFK', 'SFO', 'ATL']
+    all_expr = get_all_expr(airports, cargos, planes)
+
     pos = [expr('At(C1, SFO)'),
            expr('At(C2, JFK)'),
            expr('At(C3, ATL)'),
@@ -258,28 +269,7 @@ def air_cargo_p2() -> AirCargoProblem:
            expr('At(P2, JFK)'),
            expr('At(P3, ATL)'),
            ]
-    neg = [expr('At(C3, SFO)'),
-           expr('At(C3, JFK)'),
-           expr('In(C3, P1)'),
-           expr('In(C3, P2)'),
-           expr('In(C3, P3)'),
-           expr('At(C2, SFO)'),
-           expr('At(C2, ATL)'),
-           expr('In(C2, P1)'),
-           expr('In(C2, P2)'),
-           expr('In(C2, P3)'),
-           expr('At(C1, JFK)'),
-           expr('At(C1, ATL)'),
-           expr('In(C1, P1)'),
-           expr('In(C1, P2)'),
-           expr('In(C1, P3)'),
-           expr('At(P1, JFK)'),
-           expr('At(P1, ATL)'),
-           expr('At(P2, SFO)'),
-           expr('At(P2, ATL)'),
-           expr('At(P3, SFO)'),
-           expr('At(P3, JFK)'),
-           ]
+    neg = list(all_expr - set(pos))
     init = FluentState(pos, neg)
     goal = [expr('At(C1, JFK)'),
             expr('At(C2, SFO)'),
@@ -292,6 +282,8 @@ def air_cargo_p3() -> AirCargoProblem:
     cargos = ['C1', 'C2', 'C3', 'C4']
     planes = ['P1', 'P2']
     airports = ['JFK', 'SFO', 'ATL', 'ORD']
+    all_expr = get_all_expr(airports, cargos, planes)
+
     pos = [expr('At(C1, SFO)'),
            expr('At(C2, JFK)'),
            expr('At(C3, ATL)'),
@@ -299,33 +291,7 @@ def air_cargo_p3() -> AirCargoProblem:
            expr('At(P1, SFO)'),
            expr('At(P2, JFK)'),
            ]
-    neg = [expr('At(C4, SFO)'),
-           expr('At(C4, JFK)'),
-           expr('At(C4, ATL)'),
-           expr('In(C4, P1)'),
-           expr('In(C4, P2)'),
-           expr('At(C3, SFO)'),
-           expr('At(C3, JFK)'),
-           expr('At(C3, ORD)'),
-           expr('In(C3, P1)'),
-           expr('In(C3, P2)'),
-           expr('At(C2, SFO)'),
-           expr('At(C2, ATL)'),
-           expr('At(C2, ORD)'),
-           expr('In(C2, P1)'),
-           expr('In(C2, P2)'),
-           expr('At(C1, JFK)'),
-           expr('At(C1, ATL)'),
-           expr('At(C1, ORD)'),
-           expr('In(C1, P1)'),
-           expr('In(C1, P2)'),
-           expr('At(P1, JFK)'),
-           expr('At(P1, ATL)'),
-           expr('At(P1, ORD)'),
-           expr('At(P2, SFO)'),
-           expr('At(P2, ATL)'),
-           expr('At(P2, ORD)'),
-           ]
+    neg = list(all_expr - set(pos))
     init = FluentState(pos, neg)
     goal = [expr('At(C1, JFK)'),
             expr('At(C2, SFO)'),

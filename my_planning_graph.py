@@ -219,9 +219,19 @@ class PlanningGraph():
         self.fs = decode_state(state, problem.state_map)
         self.serial = serial_planning
         self.all_actions = self.problem.actions_list + self.noop_actions(self.problem.state_map)
+
+        # Pre-calculate (action, pre_condition) pairs for all available actions
+        lits_to_nodes = lambda lits, pos: [PgNode_s(lit, pos) for lit in lits]
+        act_to_precond_list = lambda act: [lits_to_nodes(act.precond_pos, True), lits_to_nodes(act.precond_neg, False)]
+        act_to_precond_nodes = lambda act: set([node for nodes in act_to_precond_list(act) for node in nodes])
+        self.pre_nodes = [(PgNode_a(act), act_to_precond_nodes(act)) for act in self.all_actions]
+        self.interference_mutex_cache = {}
+        self.inconsistent_effects_mutex_cache = {}
+
         self.s_levels = []
         self.a_levels = []
         self.create_graph()
+
 
     def noop_actions(self, literal_list):
         """create persistent action for each possible fluent
@@ -312,21 +322,11 @@ class PlanningGraph():
         #   set iff all prerequisite literals for the action hold in S0.  This can be accomplished by testing
         #   to see if a proposed PgNode_a has prenodes that are a subset of the previous S level.  Once an
         #   action node is added, it MUST be connected to the S node instances in the appropriate s_level set.
-        self.a_levels.append(set())
+
         s_nodes = self.s_levels[level]
-        for action in self.all_actions:
-            prenodes = set()
-            for literal in action.precond_pos:
-                prenodes.add(PgNode_s(literal, True))
-            for literal in action.precond_neg:
-                prenodes.add(PgNode_s(literal, False))
-            if prenodes <= s_nodes:
-                action_node = PgNode_a(action)
-                self.a_levels[level].add(action_node)
-                for node in s_nodes:
-                    if node in prenodes:
-                        node.children.add(action_node)
-                        action_node.parents.add(node)
+        self.a_levels.append(set([action_node for action_node, pre_nodes in self.pre_nodes if pre_nodes <= s_nodes]))
+        [(pre.children.add(act), act.parents.add(pre)) for act, nodes in self.pre_nodes for pre in s_nodes if pre in nodes]
+
 
     def add_literal_level(self, level):
         """ add an S (literal) level to the Planning Graph
@@ -345,12 +345,9 @@ class PlanningGraph():
         # sets, they may be "added" to the set without fear of duplication.  However, it is important to then correctly
         # create and connect all of the new S nodes as children of all the A nodes that could produce them, and likewise
         # add the A nodes to the parent sets of the S nodes
-        self.s_levels.append(set())
-        for a_node in self.a_levels[level - 1]:
-            for eff_node in a_node.effnodes:
-                self.s_levels[level].add(eff_node)
-                a_node.children.add(eff_node)
-                eff_node.parents.add(a_node)
+        a_eff_tuples = [(a_node, eff_node) for a_node in self.a_levels[level - 1] for eff_node in a_node.effnodes]
+        self.s_levels.append(set([eff_node for a_node, eff_node in a_eff_tuples]))
+        [(a_node.children.add(eff_node), eff_node.parents.add(a_node)) for a_node, eff_node in a_eff_tuples]
 
     def update_a_mutex(self, nodeset):
         """ Determine and update sibling mutual exclusion for A-level nodes
@@ -408,12 +405,16 @@ class PlanningGraph():
         :param node_a2: PgNode_a
         :return: bool
         """
-        if len(set(node_a1.action.effect_add) & set(node_a2.action.effect_rem)) > 0:
-            return True
-        elif len(set(node_a2.action.effect_add) & set(node_a1.action.effect_rem)) > 0:
-            return True
-        else:
-            return False
+        key = frozenset([node_a1, node_a2])
+        if key not in self.inconsistent_effects_mutex_cache:
+            if not set(node_a1.action.effect_add).isdisjoint(node_a2.action.effect_rem):
+                self.inconsistent_effects_mutex_cache[key] = True
+            elif not set(node_a2.action.effect_add).isdisjoint(node_a1.action.effect_rem):
+                self.inconsistent_effects_mutex_cache[key] = True
+            else:
+                self.inconsistent_effects_mutex_cache[key] = False
+
+        return self.inconsistent_effects_mutex_cache[key]
 
     def interference_mutex(self, node_a1: PgNode_a, node_a2: PgNode_a) -> bool:
         """
@@ -429,16 +430,20 @@ class PlanningGraph():
         :param node_a2: PgNode_a
         :return: bool
         """
-        if len(set(node_a1.action.effect_add) & set(node_a2.action.precond_neg)) > 0:
-            return True
-        elif len(set(node_a1.action.effect_rem) & set(node_a2.action.precond_pos)) > 0:
-            return True
-        elif len(set(node_a2.action.effect_add) & set(node_a1.action.precond_neg)) > 0:
-            return True
-        elif len(set(node_a2.action.effect_rem) & set(node_a1.action.precond_pos)) > 0:
-            return True
-        else:
-            return False
+        key = frozenset([node_a1, node_a2])
+        if key not in self.interference_mutex_cache:
+            if not set(node_a1.action.effect_add).isdisjoint(node_a2.action.precond_neg):
+                self.interference_mutex_cache[key] = True
+            elif not set(node_a1.action.effect_rem).isdisjoint(node_a2.action.precond_pos):
+                self.interference_mutex_cache[key] = True
+            elif not set(node_a2.action.effect_add).isdisjoint(node_a1.action.precond_neg):
+                self.interference_mutex_cache[key] = True
+            elif not set(node_a2.action.effect_rem).isdisjoint(node_a1.action.precond_pos):
+                self.interference_mutex_cache[key] = True
+            else:
+                self.interference_mutex_cache[key] = False
+
+        return self.interference_mutex_cache[key]
 
     def competing_needs_mutex(self, node_a1: PgNode_a, node_a2: PgNode_a) -> bool:
         """
@@ -537,22 +542,13 @@ class PlanningGraph():
 
         :return: int
         """
-        # For each goal in the problem, determine the level cost, then add them together
+
         level_sum = 0
 
-        # Convert all goal states into PgNode_s instances
-        fs = decode_state(self.problem.goal, self.problem.state_map)
-        goal_nodes = set()
-        for literal in fs.pos:
-            goal_nodes.add(PgNode_s(literal, True))
-        for literal in fs.neg:
-            goal_nodes.add(PgNode_s(literal, False))
-
-        # Iterate over all goal state literals, check which level they are located at in the planning graph, and sum the
-        # levels up
-        for goal_node in goal_nodes:
+        for goal_expr in self.problem.goal:
+            goal_node = PgNode_s(goal_expr, True)
             for level, level_nodes in enumerate(self.s_levels):
-                if goal_node in level_nodes:
+                if goal_node in set(level_nodes):
                     level_sum += level
                     break
 
