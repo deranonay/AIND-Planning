@@ -543,13 +543,13 @@ class PlanningGraph():
         :return: int
         """
 
+        goal_nodes = set([PgNode_s(goal_expr, True) for goal_expr in self.problem.goal])
         level_sum = 0
-
-        for goal_expr in self.problem.goal:
-            goal_node = PgNode_s(goal_expr, True)
-            for level, level_nodes in enumerate(self.s_levels):
-                if goal_node in set(level_nodes):
-                    level_sum += level
-                    break
+        for level, level_nodes in enumerate(self.s_levels):
+            common_nodes = level_nodes & goal_nodes
+            level_sum += level * len(common_nodes)
+            goal_nodes = goal_nodes - common_nodes
+            if not goal_nodes:
+                break
 
         return level_sum
