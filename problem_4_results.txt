@@ -1,0 +1,31 @@
+
+cargos = ['C1', 'C2', 'C3', 'C4', 'C5']
+planes = ['P1', 'P2']
+airports = ['JFK', 'SFO', 'ATL', 'ORD']
+init = [expr('At(C1, SFO)'),expr('At(C2, JFK)'),expr('At(C3, ATL)'),expr('At(C4, ORD)'),expr('At(C5, JFK)'),expr('At(P1, SFO)'),expr('At(P2, JFK)'),]
+goal = [expr('At(C1, JFK)'),expr('At(C2, SFO)'),expr('At(C3, JFK)'),expr('At(C4, SFO)'),expr('At(C5, ATL)'),expr('At(P2, ATL)'),]
+
+C:\Users\donay\PycharmProjects\AIND-Planning>python run_search.py -p 3 -s 1 3 10
+
+Solving Air Cargo Problem 3 using breadth_first_search...
+
+Expansions   Goal Tests   New Nodes
+  112090      121416     1055564
+
+Plan length: 15  Time elapsed in seconds: 3668.272178773446
+
+
+Solving Air Cargo Problem 3 using depth_first_graph_search...
+
+Expansions   Goal Tests   New Nodes
+  15450       15451       138597
+
+Plan length: 15065  Time elapsed in seconds: 1565.3596589754839
+
+
+Solving Air Cargo Problem 3 using astar_search with h_pg_levelsum...
+
+Expansions   Goal Tests   New Nodes
+   443         445         4331
+
+Plan length: 16  Time elapsed in seconds: 780.1972871622875
