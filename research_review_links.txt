@@ -1,0 +1,12 @@
+http://aima.cs.berkeley.edu/2nd-ed/newchap11.pdf
+
+https://machinelearnings.co/historical-intro-to-ai-planning-languages-92ce9321b538
+https://pdfs.semanticscholar.org/590b/d05f3b293a1f1f6c4bf7556f0d67e68485da.pdf
+http://eprints.hud.ac.uk/496/
+http://www.cs.toronto.edu/~sheila/2542/w06/readings/RintanenHoffmann01.pdf
+
+https://en.wikipedia.org/wiki/Graphplan
+https://en.wikipedia.org/wiki/STRIPS
+https://en.wikipedia.org/wiki/Action_description_language
+https://en.wikipedia.org/wiki/Planning_Domain_Definition_Language
+https://en.wikipedia.org/wiki/Automated_planning_and_scheduling
